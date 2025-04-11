@@ -1,10 +1,7 @@
 
 import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for # type: ignore
-import os
-app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+
 
 arquivos = []
 
