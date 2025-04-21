@@ -1,142 +1,101 @@
-
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
 import pandas as pd
 import os
 
-
-arquivo = []
-
-tabelas = []
-
-#alteracao primeiro commit
-
-#leitura de arquivos    
-#exceções obrigatorias: não pode clicar em converter sem fazer upload, limite até 10mb, arquivo quebrado, arquivo em formato diferente
-
-#se o tamanho é até 10mb
-def verifica_tamanho(arquivo):
-    if not arquivo:
-        return "arquivo não enviado"
-    tamanho = os.path.getsize(arquivo)
-    if tamanho > 10_485_760:
-        return "Arquivo maior que 10mb"
-    else:
-        return verifica_extensao(arquivo)
+class ConversorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.iconbitmap("icone.ico")
+        self.style = ttk.Style()
+        self.style.theme_use('xpnative')
+        self.root.title("Conversor de planilhas")
+        self.root.geometry("500x300")
         
-def verifica_extensao(arquivo):
-    if arquivo.filename.endswith('.csv'):
-        return ler_csv(arquivo)
+        # Variáveis
+        self.arquivo_path = tk.StringVar()
+        self.formato_saida = tk.StringVar(value="csv")
+        
+        self.criar_interface()
 
-    elif arquivo.filename.endswith('.xls'):
-        return ler_xls(arquivo)
+    def criar_interface(self):
+        # Frame principal
+        frame = ttk.Frame(self.root, padding="10")
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 1. Seletor de Arquivo
+        ttk.Label(frame, text="Arquivo de Entrada:").grid(row=0, column=0, sticky=tk.W, pady=30)
+        ttk.Entry(frame, textvariable=self.arquivo_path, width=40).grid(row=0, column=1)
+        ttk.Button(frame, text="Procurar", command=self.selecionar_arquivo).grid(row=0, column=2)
+        
+        # 2. Formato de Saída
+        ttk.Label(frame, text="Converter para:").grid(row=1, column=0, sticky=tk.W, pady=30)
+        formatos = ["CSV", "XLSX", "XLS", "ODS"]
+        ttk.Combobox(frame, textvariable=self.formato_saida, values=formatos).grid(row=1, column=1, sticky=tk.W)
+        
+        # 3. Botão de Conversão
+        ttk.Button(frame, text="Converter", command=self.converter_arquivo).grid(row=2, column=1, pady=10)
+        
+        # 4. Barra de Status
+        self.status = ttk.Label(frame, text="Aguardando arquivo.", foreground="black", font=10, padding=10)
+        self.status.grid(row=3, column=0, columnspan=3)
 
-    elif arquivo.filename.endswith('.xlsx'):
-        return ler_xlsx(arquivo)
+    def selecionar_arquivo(self):
+        # Abre uma janela para o usuário escolher um arquivo suportado
+        caminho = filedialog.askopenfilename(
+            title="Selecione o arquivo",
+            filetypes=[("Arquivos Suportados", "*.csv *.xlsx *.xls *.ods")]
+        )
+        # Se o usuário selecionar um arquivo...
+        if caminho:
+            # Atualiza a variável com o caminho selecionado
+            self.arquivo_path.set(caminho)
+            # Atualiza o texto da barra de status com o nome do arquivo
+            self.status.config(text=f"Arquivo carregado: {os.path.basename(caminho)}")
 
-    elif arquivo.filename.endswith('.ods'):
-        return ler_ods(arquivo)
-    else:
-        print("formato invalido") #formato diferente
-        return None    
+    def converter_arquivo(self):
+        # Recupera o caminho do arquivo selecionado
+        caminho = self.arquivo_path.get()
+        
+        # Se nenhum arquivo foi selecionado, mostra uma mensagem de erro
+        if not caminho:
+            messagebox.showerror("Erro", "Nenhum arquivo selecionado!")
+            return
+        
+        # Pega o formato de saída selecionado no combobox e converte para minúsculo
+        formato = self.formato_saida.get().lower()
+        
+        try:
+            # Lê o arquivo dependendo da sua extensão
+            if caminho.endswith('.csv'):
+                df = pd.read_csv(caminho)  # Leitura de CSV
+            else:
+                df = pd.read_excel(caminho)  # Leitura de Excel (.xlsx, .xls, .ods)
+            
+            # Cria o nome do arquivo de saída com a nova extensão
+            output_path = caminho.rsplit('.', 1)[0] + f".{formato}"
+            
+            # Salva o novo arquivo no formato desejado
+            if formato == "csv":
+                df.to_csv(output_path, index=False)  # Salva como CSV
+            else:
+                # Salva como Excel, especificando o engine correto para cada tipo
+                df.to_excel(output_path, index=False, engine={
+                    "xlsx": "openpyxl",
+                    "xls": "xlwt",
+                    "ods": "odf"
+                }[formato])
+            
+            # Exibe mensagem de sucesso e atualiza a barra de status
+            messagebox.showinfo("Sucesso", f"Arquivo convertido: {output_path}")
+            self.status.config(text=f"Convertido para {formato.upper()}!", foreground="green")
+        
+        except Exception as e:
+            # Em caso de erro, mostra mensagem e atualiza a barra de status
+            messagebox.showerror("Erro", f"Falha na conversão:\n{str(e)}")
+            self.status.config(text="Erro na conversão.", foreground="red")
 
-def ler_csv(arquivo):
-    df = pd.read_csv(arquivo, engine = 'c') #depois lê
-    return df
-
-def ler_xls(arquivo, engine='xlrd'): 
-    df = pd.read_excel(arquivo, engine=engine) #depois lê
-    return df
-
-def ler_xlsx(arquivo, engine='openpyxl'):
-    df = pd.read_excel(arquivo, engine=engine)
-    return df
-
-def ler_ods (arquivo: str, engine='odf'):
-    df = pd.read_excel(arquivo, engine=engine)
-    return df
-
-def to_ods(df, nome_ods, save_data):
-    # Converte o DataFrame para um formato que o pyexcel-ods3 entende
-    data = df.to_dict(orient='split')  # Converte para dicionário
-    sheet_data = { "Sheet1": data['data'] }  # O pyexcel-ods3 precisa de uma lista de listas
-    save_data(nome_ods, sheet_data)
-    
-#conversão de arquivo
-def conversor(df, arquivo, opcao, save_data):
-    match opcao:
-        # CSV para outros formatos
-        case 1:
-            nome_excel = arquivo.replace('.csv', '.xlsx')
-            df.to_excel(nome_excel, index=False, engine='openpyxl')
-            print(f"Arquivo {nome_excel} convertido com sucesso!")
-            return nome_excel
-        case 2:
-            nome_excel = arquivo.replace('.csv', '.xls')
-            arquivo.to_excel(nome_excel, index=False, engine='xlwt')
-            print(f"Arquivo {nome_excel} convertido com sucesso!")
-            return nome_excel
-        case 3: 
-            nome_ods = arquivo.replace('.csv', '.ods')
-            to_ods(df, nome_ods)
-            print(f"Arquivo {nome_ods} convertido com sucesso!")
-            return nome_ods
-
-        # XLS para outros formatos
-        case 7:
-            nome_csv = arquivo.replace('.xls', '.csv')
-            arquivo.to_csv(nome_csv, index=False)
-            print(f"Arquivo {nome_csv} convertido com sucesso!")
-            return nome_csv
-        case 8:
-            nome_excel = arquivo.replace('.xls', '.xlsx')
-            arquivo.to_excel(nome_excel, index=False, engine='openpyxl')
-            print(f"Arquivo {nome_excel} convertido com sucesso!")
-            return nome_excel
-        case 9:
-            nome_ods = arquivo.replace('.xls', '.ods')
-            to_ods(df, nome_ods)
-            print(f"Arquivo {nome_ods} convertido com sucesso!")
-            return nome_ods
-
-        # XLSX para outros formatos
-        case 4:
-            nome_csv = arquivo.replace('.xlsx', '.csv')
-            arquivo.to_csv(nome_csv, index=False)
-            print(f"Arquivo {nome_csv} convertido com sucesso!")
-            return nome_csv
-        case 5:
-            nome_excel = arquivo.replace('.xlsx', '.xls')
-            arquivo.to_excel(nome_excel, index=False, engine='xlwt')
-            print(f"Arquivo {nome_excel} convertido com sucesso!")
-            return nome_excel
-        case 6:
-            nome_ods = arquivo.replace('.xlsx', '.ods')
-            to_ods(df, nome_ods)
-            print(f"Arquivo {nome_ods} convertido com sucesso!")
-            return nome_ods
-
-        # ODS para outros formatos
-        case 10:
-            nome_csv = arquivo.replace('.ods', '.csv')
-            arquivo.to_csv(nome_csv, index=False)
-            print(f"Arquivo {nome_csv} convertido com sucesso!")
-            return nome_csv
-        case 11:
-            nome_xlsx = arquivo.replace('.ods', '.xlsx')
-            arquivo.to_excel(nome_xlsx, index=False, engine='openpyxl')
-            print(f"Arquivo {nome_xlsx} convertido com sucesso!")
-            return nome_xlsx
-        case 12:
-            nome_xls = arquivo.replace('.ods', '.xls')
-            arquivo.to_excel(nome_xls, index=False, engine='xlwt')
-            print(f"Arquivo {nome_xls} convertido com sucesso!")
-            return nome_xls
-
-        # opção inválida
-        case _:
-            print("opcao invalida")
-            return None
-
-
-
-    #função para receber o caminho convertido e abrir o arquivo
-    
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ConversorApp(root)
+    root.mainloop()
