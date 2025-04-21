@@ -7,6 +7,7 @@ arquivo = []
 
 tabelas = []
 
+#alteracao primeiro commit
 
 #leitura de arquivos    
 #exceções obrigatorias: não pode clicar em converter sem fazer upload, limite até 10mb, arquivo quebrado, arquivo em formato diferente
