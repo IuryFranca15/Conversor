@@ -2,13 +2,14 @@ import pandas as pd
 import os
 from pyexcel_ods3 import save_data
 
+# Função verifica_tamanho
 def verifica_tamanho(arquivo_path):
     if not arquivo_path:
-        return "Arquivo não enviado"
+        return "Erro: Arquivo não selecionado" 
     try:
         tamanho = os.path.getsize(arquivo_path)
         if tamanho > 10_485_760:
-            return "Arquivo maior que 10MB"
+            return "Erro: Arquivo maior que 10MB"
         return None
     except Exception as e:
         return f"Erro: {str(e)}"
@@ -117,6 +118,6 @@ def conversor(arquivo_path, opcao):
                 df.to_excel(nome, index=False, engine='xlwt')
                 return nome
             case _:
-                return "Opção inválida"
+                return "Erro: Opção inválida"
     except Exception as e:
         return f"Erro na conversão: {str(e)}"
